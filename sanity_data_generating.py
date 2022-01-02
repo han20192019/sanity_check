@@ -57,6 +57,8 @@ for ii in os.listdir(directory):
                 print('scan is not 640x372 pixels')
             else:
                 for sli_ori in kspace_orig[8:30]:
+                    if num_slice>12:
+                        break
                     width = sli_ori.shape[0]
                     height = sli_ori.shape[1]
 

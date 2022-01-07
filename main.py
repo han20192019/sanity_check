@@ -7,13 +7,14 @@ from pytorch_lightning.loggers import TestTubeLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from pytorch_lightning import seed_everything
-
+from deepinpy.forwards import MultiChannelMRIDataset
 import os
 import pathlib
 import argparse
 
 import time
 import sys
+import numpy as np
 
 from deepinpy.recons import CGSenseRecon, MoDLRecon, ResNetRecon, DeepBasisPursuitRecon
 
@@ -78,6 +79,22 @@ def main_train(args, gpu_ids=None):
     trainer = Trainer(max_epochs=args.num_epochs, gpus=gpus, logger=tt_logger, checkpoint_callback=checkpoint_callback, distributed_backend=distributed_backend, accumulate_grad_batches=args.num_accumulate, progress_bar_refresh_rate=1, gradient_clip_val=args.clip_grads)
 
     trainer.fit(M)
+    M.eval()
+    with torch.no_grad():
+
+        eval_data = MultiChannelMRIDataset(data_file="debug_0102_sanity.h5", stdev=args.stdev,
+                                           num_data_sets=args.num_data_sets,
+                                           adjoint_data=args.adjoint_data, id=0,
+                                           clear_cache=False, cache_data=False, scale_data=False,
+                                           fully_sampled=args.fully_sampled, data_idx=None,
+                                           inverse_crime=args.inverse_crime, noncart=args.noncart)
+        eval_loader = torch.utils.data.DataLoader(eval_data, batch_size=1,
+                                                  shuffle=False, num_workers=0, drop_last=True)
+        for batch in eval_loader:
+            M.batch(batch[1])
+            recon_imgs = M(batch[1]['out'])
+            print(recon_imgs.shape)
+            np.save("one_sanity_recon.npy", recon_imgs)
 
 
 if __name__ == '__main__':
